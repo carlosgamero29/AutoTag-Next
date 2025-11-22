@@ -255,10 +255,11 @@ function Dialog.show(photos)
         local function createDropdown(title, propName, items)
             return f:row {
                 f:static_text { title = title, width = 100, alignment = 'right' },
-                f:popup_menu {
+                f:combo_box {  -- Cambiado a combo_box para permitir edición
                     value = LrView.bind(propName),
                     items = items,
-                    width = 200
+                    width = 300, -- Más ancho para leer mejor
+                    immediate = true -- Actualizar mientras se escribe
                 }
             }
         end
@@ -358,13 +359,28 @@ function Dialog.show(photos)
                 fill_horizontal = 1,
                 
                 f:static_text { title = "Título:" },
-                f:edit_field { value = LrView.bind('title'), fill_horizontal = 1, immediate = true },
+                f:edit_field { 
+                    value = LrView.bind('title'), 
+                    fill_horizontal = 1, 
+                    height_in_lines = 2, -- Más espacio para títulos largos
+                    immediate = true 
+                },
                 
                 f:static_text { title = "Descripción:" },
-                f:edit_field { value = LrView.bind('description'), fill_horizontal = 1, height_in_lines = 4, immediate = true },
+                f:edit_field { 
+                    value = LrView.bind('description'), 
+                    fill_horizontal = 1, 
+                    height_in_lines = 8, -- Mucho más espacio para descripciones detalladas
+                    immediate = true 
+                },
                 
                 f:static_text { title = "Keywords (separadas por comas):" },
-                f:edit_field { value = LrView.bind('keywords'), fill_horizontal = 1, height_in_lines = 2, immediate = true },
+                f:edit_field { 
+                    value = LrView.bind('keywords'), 
+                    fill_horizontal = 1, 
+                    height_in_lines = 6, -- Más espacio para ver todas las keywords
+                    immediate = true 
+                },
             }
         }
 
