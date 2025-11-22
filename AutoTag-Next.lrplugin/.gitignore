@@ -1,0 +1,31 @@
+# Archivos de sistema de Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Archivos de sistema de macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Archivos temporales de Lightroom
+*.lrcat-lock
+*.lrcat.lock
+
+# Logs y archivos de depuración
+*.log
+debug.txt
+
+# Archivos de configuración local (contienen API keys)
+# NOTA: Si quieres compartir configuraciones de ejemplo, crea archivos .example
+local_config.lua
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Archivos de backup
+*.bak
+*~
