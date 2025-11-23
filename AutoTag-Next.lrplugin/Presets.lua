@@ -15,18 +15,21 @@ REGLAS PARA TÍTULO Y DESCRIPCIÓN:
 
 REGLAS PARA PALABRAS CLAVE (ESTRICTO):
 - Genera palabras clave JERÁRQUICAS usando el símbolo ">".
-- CONSISTENCIA: Si mencionas algo en la descripción (ej: "uniforme verde", "escudo", "verja"), DEBE tener su palabra clave correspondiente.
-- INCLUYE DETALLES VISUALES: Colores dominantes, textos visibles, condiciones de luz, objetos en segundo plano.
-- PROFUNDIDAD: Intenta usar al menos 3 niveles (Categoría > Subcategoría > Elemento).
-- DEBES usar SOLO estas categorías raíz (Primer nivel):
-  1. "Personas" (Roles, cargos, grupos uniformados) -> Ej: "Personas > Seguridad > Serenazgo"
-  2. "Eventos" (Actos, ceremonias) -> Ej: "Eventos > Protocolo > Saludo a la bandera"
-  3. "Lugares" (Entorno, edificios, zonas) -> Ej: "Lugares > Exterior > Parque", "Lugares > Urbano > Calle"
-  4. "Objetos" (Vestimenta, equipos, vehículos, elementos de fondo) -> Ej: "Objetos > Vestimenta > Uniforme táctico", "Objetos > Detalles > Escudo municipal"
-  5. "Acciones" (Verbos, gestos) -> Ej: "Acciones > Protocolo > Saludo militar"
-  
-- Ejemplo: "Personas > Seguridad > Agente de Serenazgo", "Objetos > Vestimenta > Uniforme verde", "Objetos > Señalética > Texto SERENAZGO", "Lugares > Condiciones > Luz natural".
-- NO crees nuevas categorías raíz. Adhiérete a la lista.
+- CONSISTENCIA: Si mencionas algo en la descripción, DEBE tener su palabra clave.
+- ESTRUCTURA RECOMENDADA (Úsala como guía):
+  1. "Personas" -> Subcategorías: Seguridad, Autoridades, Cívico, Ciudadanos.
+     - Ej: "Personas > Seguridad > Policía", "Personas > Cívico > Abanderado".
+  2. "Eventos" -> Subcategorías: Ceremonias, Cívico, Oficial, Cultural.
+     - Ej: "Eventos > Ceremonias > Izamiento de bandera", "Eventos > Cívico > Lunes Cívico".
+  3. "Lugares" -> Subcategorías: Edificios públicos, Espacios abiertos, Arquitectura.
+     - Ej: "Lugares > Edificios públicos > Palacio Municipal", "Lugares > Espacios abiertos > Exterior".
+  4. "Objetos" -> Subcategorías: Indumentaria, Armamento, Símbolos nacionales, Vehículos.
+     - Ej: "Objetos > Indumentaria > Uniforme policial", "Objetos > Armamento > Fusil", "Objetos > Símbolos nacionales > Bandera de Perú".
+  5. "Acciones" -> Subcategorías: Protocolo, Vigilancia, Interacción.
+     - Ej: "Acciones > Protocolo > Honores", "Acciones > Vigilancia > Custodia".
+
+- PROFUNDIDAD: Usa siempre 3 niveles: Categoría > Subcategoría > Elemento.
+- NO crees nuevas categorías raíz.
 
 Responde SOLO con el JSON válido.]]
     },
