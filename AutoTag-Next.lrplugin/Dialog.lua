@@ -10,9 +10,9 @@ local LrProgressScope = import 'LrProgressScope'
 
 local Data = require 'Data'
 local Data = require 'Data'
--- local Settings = require 'Settings' -- Removed
 local API = require 'API'
 local MetadataManager = require 'MetadataManager'
+local Presets = require 'Presets'
 local LrPrefs = import 'LrPrefs'
 
 local Dialog = {}
@@ -24,13 +24,31 @@ function Dialog.show(photos)
         
         -- Load config directly from LrPrefs
         local prefs = LrPrefs.prefsForPlugin()
+        
+        -- Helper to get the correct prompt
+        local function getPrompt()
+            if prefs.useCustomPrompt and prefs.customPrompt ~= "" then
+                return prefs.customPrompt
+            end
+            
+            local presetId = prefs.promptPreset or "municipality"
+            for _, p in ipairs(Presets) do
+                if p.id == presetId then
+                    return p.prompt
+                end
+            end
+            
+            -- Fallback to default (Municipality)
+            return Presets[1].prompt
+        end
+        
         local config = {
             provider = prefs.provider or "gemini",
-            apiKey = prefs.geminiApiKey or "", -- Map for API
-            model = prefs.geminiModel or "gemini-2.5-flash", -- Map for API
+            apiKey = prefs.geminiApiKey or "", 
+            model = prefs.geminiModel or "gemini-2.5-flash",
             ollamaUrl = prefs.ollamaUrl or "http://localhost:11434/api/generate",
             ollamaModel = prefs.ollamaModel or "llava",
-            systemPrompt = "Eres un asistente experto en catalogación de fotografías para una municipalidad. Analiza la imagen y genera metadatos precisos."
+            -- systemPrompt is now dynamic
         }
         
         local municipalityData = Data.load()
@@ -47,6 +65,12 @@ function Dialog.show(photos)
         props.area = prefs.lastArea or ""
         props.activity = prefs.lastActivity or ""
         props.location = prefs.lastLocation or ""
+        
+        -- Listas dinámicas para los combos
+        props.institution_items = municipalityData.instituciones
+        props.area_items = municipalityData.areas
+        props.activity_items = municipalityData.actividades
+        props.location_items = municipalityData.ubicaciones
         
         -- Metadata
         props.title = ""
@@ -134,6 +158,9 @@ function Dialog.show(photos)
                 progress:setPortionComplete(0.3, 1)
                 props.statusMessage = "Enviando a Gemini..."
                 
+                -- Set dynamic prompt
+                config.systemPrompt = getPrompt()
+                
                 -- Llamada directa
                 local result, err = API.analyze(photo:getRawMetadata('path'), contextData, config)
                 
@@ -148,9 +175,18 @@ function Dialog.show(photos)
                     props.description = result.description or ""
                     
                     if result.keywords and type(result.keywords) == "table" then
-                        props.keywords = table.concat(result.keywords, ", ")
+                        -- Limpiar unicode escapes (\u003e -> >)
+                        local cleanKeywords = {}
+                        for _, kw in ipairs(result.keywords) do
+                            local clean = kw:gsub("\\u003e", ">"):gsub("u003e", ">")
+                            table.insert(cleanKeywords, clean)
+                        end
+                        -- Usar salto de línea para mostrar como lista vertical
+                        props.keywords = table.concat(cleanKeywords, "\n")
                     elseif result.keywords and type(result.keywords) == "string" then
-                        props.keywords = result.keywords
+                        local clean = result.keywords:gsub("\\u003e", ">"):gsub("u003e", ">")
+                        -- Si viene como string con comas, convertir a newlines
+                        props.keywords = clean:gsub(",%s*", "\n")
                     else
                         props.keywords = ""
                     end
@@ -194,10 +230,23 @@ function Dialog.show(photos)
                     progress:setPortionComplete(i-1, props.totalPhotos)
                     progress:setCaption("Analizando " .. i .. " de " .. props.totalPhotos)
                     
+                    -- Batch Delay
+                    if i > 1 and prefs.batchDelay and prefs.batchDelay > 0 then
+                        LrTasks.sleep(prefs.batchDelay / 1000)
+                    end
+                    
+                    -- Set dynamic prompt
+                    config.systemPrompt = getPrompt()
+                    
                     local result, err = API.analyze(photo:getRawMetadata('path'), contextData, config)
                     
                     if result then
-                        MetadataManager.applyMetadata({photo}, result, contextData.municipalityData)
+                        local saveOptions = {
+                            saveTitle = prefs.saveTitle,
+                            saveDescription = prefs.saveDescription,
+                            saveKeywords = prefs.saveKeywords
+                        }
+                        MetadataManager.applyMetadata({photo}, result, contextData.municipalityData, saveOptions)
                         successCount = successCount + 1
                     else
                         errorCount = errorCount + 1
@@ -222,12 +271,15 @@ function Dialog.show(photos)
                      keywords = {}
                  }
                  
-                 -- Parse keywords string to table
-                 if props.keywords and props.keywords ~= "" then
-                     for kw in string.gmatch(props.keywords, "([^,]+)") do
-                         table.insert(metadata.keywords, kw:match("^%s*(.-)%s*$"))
-                     end
-                 end
+                 -- Parse keywords string (line by line)
+                  if props.keywords and props.keywords ~= "" then
+                      for kw in string.gmatch(props.keywords, "[^\r\n]+") do
+                          local cleanKw = kw:match("^%s*(.-)%s*$")
+                          if cleanKw and cleanKw ~= "" then
+                              table.insert(metadata.keywords, cleanKw)
+                          end
+                      end
+                  end
                  
                  local muniData = {
                     institution = props.institution,
@@ -238,7 +290,12 @@ function Dialog.show(photos)
                  
                  -- Usar LrTasks.pcall para permitir yielding (necesario para withWriteAccessDo)
                  local success, err = LrTasks.pcall(function()
-                    MetadataManager.applyMetadata({photo}, metadata, muniData)
+                    local saveOptions = {
+                        saveTitle = prefs.saveTitle,
+                        saveDescription = prefs.saveDescription,
+                        saveKeywords = prefs.saveKeywords
+                    }
+                    MetadataManager.applyMetadata({photo}, metadata, muniData, saveOptions)
                  end)
                  
                  if success then
@@ -252,14 +309,32 @@ function Dialog.show(photos)
         end
 
         -- UI Components
-        local function createDropdown(title, propName, items)
+        local function createDropdown(title, propName, categoryName)
             return f:row {
                 f:static_text { title = title, width = 100, alignment = 'right' },
-                f:combo_box {  -- Cambiado a combo_box para permitir edición
+                f:combo_box {
                     value = LrView.bind(propName),
-                    items = items,
-                    width = 300, -- Más ancho para leer mejor
-                    immediate = true -- Actualizar mientras se escribe
+                    items = LrView.bind {
+                        key = propName .. "_items", -- Binding dinámico para la lista
+                        bind_to_object = props
+                    },
+                    width = 250,
+                    immediate = true
+                },
+                f:push_button {
+                    title = "+",
+                    width = 25,
+                    action = function()
+                        local value = props[propName]
+                        if Data.addItem(categoryName, value) then
+                            LrDialogs.message("Guardado", "Se agregó '" .. value .. "' a la lista de " .. title, "info")
+                            -- Actualizar la lista en la UI
+                            local newData = Data.load()
+                            props[propName .. "_items"] = newData[categoryName]
+                        else
+                            LrDialogs.message("Información", "El valor '" .. value .. "' ya existe o es inválido.", "info")
+                        end
+                    end
                 }
             }
         end
@@ -282,13 +357,13 @@ function Dialog.show(photos)
                 f:row {
                     f:column {
                         spacing = f:control_spacing(),
-                        createDropdown("Institución:", 'institution', municipalityData.instituciones),
-                        createDropdown("Área:", 'area', municipalityData.areas),
+                        createDropdown("Institución:", 'institution', 'instituciones'),
+                        createDropdown("Área:", 'area', 'areas'),
                     },
                     f:column {
                         spacing = f:control_spacing(),
-                        createDropdown("Actividad:", 'activity', municipalityData.actividades),
-                        createDropdown("Lugar:", 'location', municipalityData.ubicaciones),
+                        createDropdown("Actividad:", 'activity', 'actividades'),
+                        createDropdown("Lugar:", 'location', 'ubicaciones'),
                     }
                 }
             }
@@ -374,7 +449,7 @@ function Dialog.show(photos)
                     immediate = true 
                 },
                 
-                f:static_text { title = "Keywords (separadas por comas):" },
+                f:static_text { title = "Keywords (una por línea):" },
                 f:edit_field { 
                     value = LrView.bind('keywords'), 
                     fill_horizontal = 1, 
