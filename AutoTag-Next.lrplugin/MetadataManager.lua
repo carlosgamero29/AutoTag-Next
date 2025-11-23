@@ -79,7 +79,8 @@ function MetadataManager.applyMetadata(photos, metadata, municipalityData, optio
                 if municipalityData.location then contextValues[municipalityData.location:lower()] = true end
                 
                 for _, kwString in ipairs(metadata.keywords) do
-                    -- Limpiar espacios extra
+                    -- Limpiar unicode escapes (\u003e -> >) y espacios extra
+                    kwString = kwString:gsub("\\u003e", ">"):gsub("u003e", ">")
                     kwString = kwString:match("^%s*(.-)%s*$")
                     
                     -- Verificar si es jerárquica (contiene '>')

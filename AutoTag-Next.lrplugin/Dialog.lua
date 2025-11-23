@@ -7,9 +7,10 @@ local LrBinding = import 'LrBinding'
 local LrTasks = import 'LrTasks'
 local LrFunctionContext = import 'LrFunctionContext'
 local LrProgressScope = import 'LrProgressScope'
+local LrDate = import 'LrDate'
 
 local Data = require 'Data'
-local Data = require 'Data'
+-- local Data = require 'Data' -- Duplicate removed
 local API = require 'API'
 local MetadataManager = require 'MetadataManager'
 local Presets = require 'Presets'
@@ -131,6 +132,7 @@ function Dialog.show(photos)
             LrTasks.startAsyncTask(function()
                 props.isAnalyzing = true
                 props.statusMessage = "Iniciando análisis..."
+                local startTime = LrDate.currentTime()
                 
                 -- Crear barra de progreso nativa de Lightroom
                 local progress = LrProgressScope({ title = "AutoTag Next: Analizando foto..." })
@@ -191,8 +193,10 @@ function Dialog.show(photos)
                         props.keywords = ""
                     end
                     
-                    props.statusMessage = "✓ Análisis completado."
-                    progress:setCaption("¡Análisis completado!")
+                    local endTime = LrDate.currentTime()
+                    local duration = endTime - startTime
+                    props.statusMessage = string.format("✓ Análisis completado en %.2f s.", duration)
+                    progress:setCaption(string.format("¡Completado en %.2f s!", duration))
                 else
                     local errorMsg = err or "Error desconocido"
                     props.statusMessage = "✗ Error: " .. errorMsg
@@ -210,6 +214,7 @@ function Dialog.show(photos)
         local function analyzeBatch()
             LrTasks.startAsyncTask(function()
                 props.isAnalyzing = true
+                local startTime = LrDate.currentTime()
                 local progress = LrProgressScope({ title = "Analizando Lote AutoTag Next" })
                 
                 local contextData = {
@@ -255,7 +260,9 @@ function Dialog.show(photos)
                 
                 progress:done()
                 props.isAnalyzing = false
-                props.statusMessage = string.format("Lote completado: %d exitosas, %d errores", successCount, errorCount)
+                local endTime = LrDate.currentTime()
+                local duration = endTime - startTime
+                props.statusMessage = string.format("Lote completado: %d exitosas, %d errores (%.2f s)", successCount, errorCount, duration)
                 LrDialogs.message("AutoTag Next", string.format("Proceso terminado.\n✓ %d fotos analizadas\n✗ %d errores", successCount, errorCount), "info")
             end)
         end
@@ -326,13 +333,18 @@ function Dialog.show(photos)
                     width = 25,
                     action = function()
                         local value = props[propName]
+                        if not value or value == "" then
+                            LrDialogs.message("Atención", "Por favor escribe un valor antes de agregarlo.", "info")
+                            return
+                        end
+                        
                         if Data.addItem(categoryName, value) then
                             LrDialogs.message("Guardado", "Se agregó '" .. value .. "' a la lista de " .. title, "info")
                             -- Actualizar la lista en la UI
                             local newData = Data.load()
                             props[propName .. "_items"] = newData[categoryName]
                         else
-                            LrDialogs.message("Información", "El valor '" .. value .. "' ya existe o es inválido.", "info")
+                            LrDialogs.message("Información", "El valor '" .. value .. "' ya existe.", "info")
                         end
                     end
                 }
