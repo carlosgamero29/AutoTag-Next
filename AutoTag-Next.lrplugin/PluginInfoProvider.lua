@@ -1,6 +1,11 @@
 -- PluginInfoProvider.lua
 local LrView = import 'LrView'
 local LrPrefs = import 'LrPrefs'
+local LrApplication = import 'LrApplication'
+local LrPathUtils = import 'LrPathUtils'
+local LrFileUtils = import 'LrFileUtils'
+local LrSystemInfo = import 'LrSystemInfo'
+local Data = require 'Data'
 local Presets = require 'Presets'
 
 local PluginInfoProvider = {}
@@ -147,6 +152,23 @@ function PluginInfoProvider.sectionsForTopOfDialog(f, propertyTable)
                 f:checkbox { title = "Título", value = LrView.bind { key = 'saveTitle', bind_to_object = prefs } },
                 f:checkbox { title = "Descripción", value = LrView.bind { key = 'saveDescription', bind_to_object = prefs } },
                 f:checkbox { title = "Palabras Clave", value = LrView.bind { key = 'saveKeywords', bind_to_object = prefs } }
+            }
+        },
+        
+        {
+            title = "Gestión de Datos",
+            
+            f:row {
+                f:static_text { 
+                    title = "Ubicación del archivo de datos:", 
+                    width = LrView.share('label_width'), 
+                    alignment = 'right' 
+                },
+                f:edit_field { 
+                    value = "Documentos/AutoTagNext_Data/user_data.json",
+                    width = 300,
+                    enabled = false -- Read-only
+                }
             }
         }
     }

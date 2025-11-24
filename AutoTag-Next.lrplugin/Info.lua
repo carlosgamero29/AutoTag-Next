@@ -10,14 +10,14 @@ return {
     
     LrLibraryMenuItems = {
         {
-            title = "AutoTag Next (Biblioteca)",
+            title = "AutoTag Next",
             file = "Main.lua",
         }
     },
 
     LrFileMenuItems = {
         {
-            title = "AutoTag Next (Archivo)",
+            title = "AutoTag Next",
             file = "Main.lua",
         }
     },

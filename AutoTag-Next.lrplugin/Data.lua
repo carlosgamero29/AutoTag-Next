@@ -10,8 +10,11 @@ local Data = {}
 
 -- Ruta al archivo de datos del usuario
 local function getUserDataPath()
-    return LrPathUtils.child(LrPathUtils.getStandardFilePath('appData'), "AutoTagNext_UserData.json")
+    local docs = LrPathUtils.getStandardFilePath('documents')
+    local folder = LrPathUtils.child(docs, "AutoTagNext_Data")
+    return LrPathUtils.child(folder, "user_data.json")
 end
+Data.getUserDataPath = getUserDataPath
 
 -- Valores por defecto si no hay archivo
 local defaultData = {
@@ -69,8 +72,22 @@ end
 -- Guardar datos completos
 function Data.saveAll(data)
     local path = getUserDataPath()
+    
+    -- Asegurar que el directorio existe
+    local dir = LrPathUtils.parent(path)
+    if not LrFileUtils.exists(dir) then
+        LrFileUtils.createAllDirectories(dir)
+    end
+    
     local content = JSON.encode(data)
-    LrFileUtils.writeFile(path, content)
+    
+    local file, err = io.open(path, "w")
+    if not file then
+        error("No se pudo abrir el archivo para escribir: " .. tostring(err))
+    end
+    
+    file:write(content)
+    file:close()
 end
 
 -- Agregar un nuevo valor a una categoría
@@ -91,7 +108,14 @@ function Data.addItem(category, value)
     
     -- Agregar y guardar
     table.insert(data[category], value)
-    Data.saveAll(data)
+    
+    -- Intentar guardar y capturar errores
+    local success, err = pcall(Data.saveAll, data)
+    if not success then
+        import 'LrDialogs'.message("Error de Guardado", "No se pudo guardar el dato: " .. tostring(err), "critical")
+        return false
+    end
+    
     return true
 end
 

@@ -27,6 +27,12 @@ REGLAS PARA PALABRAS CLAVE (ESTRICTO):
      - Ej: "Objetos > Indumentaria > Uniforme policial", "Objetos > Armamento > Fusil", "Objetos > Símbolos nacionales > Bandera de Perú".
   5. "Acciones" -> Subcategorías: Protocolo, Vigilancia, Interacción.
      - Ej: "Acciones > Protocolo > Honores", "Acciones > Vigilancia > Custodia".
+  6. "Entorno" -> Subcategorías: Exterior, Interior, Urbano, Rural.
+     - Ej: "Entorno > Exterior > Plaza", "Entorno > Interior > Auditorio".
+  7. "Iluminación" -> Subcategorías: Luz natural, Luz artificial, Soleado, Nublado.
+     - Ej: "Iluminación > Luz natural > Día soleado", "Iluminación > Luz artificial > Interior".
+  8. "Hora del día" -> Subcategorías: Mañana, Tarde, Noche.
+     - Ej: "Hora del día > Mañana".
 
 - PROFUNDIDAD: Usa siempre 3 niveles: Categoría > Subcategoría > Elemento.
 - NO crees nuevas categorías raíz.
