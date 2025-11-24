@@ -73,10 +73,26 @@ function MetadataManager.applyMetadata(photos, metadata, municipalityData, optio
             if options.saveKeywords and metadata.keywords and #metadata.keywords > 0 then
                 -- Crear set de valores de contexto para evitar duplicados
                 local contextValues = {}
-                if municipalityData.institution then contextValues[municipalityData.institution:lower()] = true end
-                if municipalityData.area then contextValues[municipalityData.area:lower()] = true end
-                if municipalityData.activity then contextValues[municipalityData.activity:lower()] = true end
-                if municipalityData.location then contextValues[municipalityData.location:lower()] = true end
+                if municipalityData.institutions then
+                    for _, inst in ipairs(municipalityData.institutions) do
+                        if inst then contextValues[inst:lower()] = true end
+                    end
+                end
+                if municipalityData.areas then
+                    for _, area in ipairs(municipalityData.areas) do
+                        if area then contextValues[area:lower()] = true end
+                    end
+                end
+                if municipalityData.activities then
+                    for _, act in ipairs(municipalityData.activities) do
+                        if act then contextValues[act:lower()] = true end
+                    end
+                end
+                if municipalityData.locations then
+                    for _, loc in ipairs(municipalityData.locations) do
+                        if loc then contextValues[loc:lower()] = true end
+                    end
+                end
                 
                 for _, kwString in ipairs(metadata.keywords) do
                     -- Limpiar unicode escapes (\u003e -> >) y espacios extra
@@ -119,37 +135,53 @@ function MetadataManager.applyMetadata(photos, metadata, municipalityData, optio
                 end
             end
             
-            -- 3. Municipality Data (Directamente en la raíz, sin "AutoTag Info")
+            -- 3. Municipality Data (Múltiples valores soportados)
             
-            if municipalityData.institution and municipalityData.institution ~= "" then
+            if municipalityData.institutions and #municipalityData.institutions > 0 then
                 local instParent = getKeyword(catalog, "Institución", nil)
                 if instParent then
-                    local k = getKeyword(catalog, municipalityData.institution, instParent)
-                    if k then photo:addKeyword(k) end
+                    for _, inst in ipairs(municipalityData.institutions) do
+                        if inst and inst ~= "" then
+                            local k = getKeyword(catalog, inst, instParent)
+                            if k then photo:addKeyword(k) end
+                        end
+                    end
                 end
             end
             
-            if municipalityData.area and municipalityData.area ~= "" then
+            if municipalityData.areas and #municipalityData.areas > 0 then
                 local areaParent = getKeyword(catalog, "Área", nil)
                 if areaParent then
-                    local k = getKeyword(catalog, municipalityData.area, areaParent)
-                    if k then photo:addKeyword(k) end
+                    for _, area in ipairs(municipalityData.areas) do
+                        if area and area ~= "" then
+                            local k = getKeyword(catalog, area, areaParent)
+                            if k then photo:addKeyword(k) end
+                        end
+                    end
                 end
             end
             
-            if municipalityData.activity and municipalityData.activity ~= "" then
+            if municipalityData.activities and #municipalityData.activities > 0 then
                 local actParent = getKeyword(catalog, "Actividad", nil)
                 if actParent then
-                    local k = getKeyword(catalog, municipalityData.activity, actParent)
-                    if k then photo:addKeyword(k) end
+                    for _, act in ipairs(municipalityData.activities) do
+                        if act and act ~= "" then
+                            local k = getKeyword(catalog, act, actParent)
+                            if k then photo:addKeyword(k) end
+                        end
+                    end
                 end
             end
             
-            if municipalityData.location and municipalityData.location ~= "" then
+            if municipalityData.locations and #municipalityData.locations > 0 then
                 local locParent = getKeyword(catalog, "Lugar", nil)
                 if locParent then
-                    local k = getKeyword(catalog, municipalityData.location, locParent)
-                    if k then photo:addKeyword(k) end
+                    for _, loc in ipairs(municipalityData.locations) do
+                        if loc and loc ~= "" then
+                            local k = getKeyword(catalog, loc, locParent)
+                            if k then photo:addKeyword(k) end
+                        end
+                    end
                 end
             end
         end

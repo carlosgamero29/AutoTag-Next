@@ -18,6 +18,155 @@ local LrPrefs = import 'LrPrefs'
 
 local Dialog = {}
 
+-- Función para mostrar la ventana de gestión de datos
+local function showDataManager()
+    LrFunctionContext.callWithContext("Gestionar Datos", function(context)
+        local f = LrView.osFactory()
+        local managerProps = LrBinding.makePropertyTable(context)
+        
+        -- Cargar datos actuales
+        local currentData = Data.load()
+        
+        -- Asegurar que tenemos datos (debugging)
+        if not currentData.instituciones or #currentData.instituciones == 0 then
+            currentData.instituciones = {"Municipalidad Provincial"}
+        end
+        if not currentData.areas or #currentData.areas == 0 then
+            currentData.areas = {"Alcaldía"}
+        end
+        if not currentData.actividades or #currentData.actividades == 0 then
+            currentData.actividades = {"Inauguración"}
+        end
+        if not currentData.ubicaciones or #currentData.ubicaciones == 0 then
+            currentData.ubicaciones = {"Plaza de Armas"}
+        end
+        
+        -- Crear listas editables con fallback
+        local inst_text = table.concat(currentData.instituciones or {}, "\n")
+        local area_text = table.concat(currentData.areas or {}, "\n")
+        local act_text = table.concat(currentData.actividades or {}, "\n")
+        local ubi_text = table.concat(currentData.ubicaciones or {}, "\n")
+        
+        -- Debug: Si todo está vacío, usar placeholder
+        if inst_text == "" then inst_text = "Municipalidad Provincial\nGobierno Regional" end
+        if area_text == "" then area_text = "Alcaldía\nGerencia Municipal" end
+        if act_text == "" then act_text = "Inauguración\nInspección" end
+        if ubi_text == "" then ubi_text = "Plaza de Armas\nPalacio Municipal" end
+        
+        managerProps.instituciones_text = inst_text
+        managerProps.areas_text = area_text
+        managerProps.actividades_text = act_text
+        managerProps.ubicaciones_text = ubi_text
+        
+        local contents = f:column {
+            spacing = f:control_spacing(),
+            fill_horizontal = 1,
+            
+            f:static_text {
+                title = "📝 Instrucciones:",
+                font = "<system/bold>"
+            },
+            f:static_text {
+                title = "• Escribe un valor por línea\n• Usa Shift+Enter para nueva línea (NO solo Enter)\n• Cuando termines, haz clic en '💾 Guardar Cambios'",
+                height_in_lines = 3
+            },
+            
+            f:separator { fill_horizontal = 1 },
+            
+            f:row {
+                spacing = f:control_spacing(),
+                fill_horizontal = 1,
+                
+                -- Columna 1: Instituciones y Áreas
+                f:column {
+                    spacing = f:control_spacing(),
+                    fill_horizontal = 1,
+                    
+                    f:static_text { title = "Instituciones:", font = "<system/bold>" },
+                    f:edit_field {
+                        value = LrView.bind('instituciones_text'),
+                        fill_horizontal = 1,
+                        height_in_lines = 10,
+                        width_in_chars = 30,
+                        immediate = true
+                    },
+                    
+                    f:static_text { title = "Áreas:", font = "<system/bold>" },
+                    f:edit_field {
+                        value = LrView.bind('areas_text'),
+                        fill_horizontal = 1,
+                        height_in_lines = 10,
+                        width_in_chars = 30,
+                        immediate = true
+                    }
+                },
+                
+                -- Columna 2: Actividades y Lugares
+                f:column {
+                    spacing = f:control_spacing(),
+                    fill_horizontal = 1,
+                    
+                    f:static_text { title = "Actividades:", font = "<system/bold>" },
+                    f:edit_field {
+                        value = LrView.bind('actividades_text'),
+                        fill_horizontal = 1,
+                        height_in_lines = 10,
+                        width_in_chars = 30,
+                        immediate = true
+                    },
+                    
+                    f:static_text { title = "Lugares:", font = "<system/bold>" },
+                    f:edit_field {
+                        value = LrView.bind('ubicaciones_text'),
+                        fill_horizontal = 1,
+                        height_in_lines = 10,
+                        width_in_chars = 30,
+                        immediate = true
+                    }
+                }
+            },
+            
+            f:static_text {
+                title = "Nota: Las líneas vacías serán eliminadas automáticamente.",
+                text_color = import 'LrColor'(0.5, 0.5, 0.5)
+            }
+        }
+        
+        local result = LrDialogs.presentModalDialog {
+            title = "✏️ Gestionar Datos del Plugin",
+            contents = contents,
+            bind_to_object = managerProps,
+            actionVerb = "< hidden >",  -- Ocultar botón OK para que Enter no cierre
+            cancelVerb = "Cerrar",
+            otherVerb = "💾 Guardar Cambios"
+        }
+        
+        if result == "other" then
+            -- Procesar y guardar los datos
+            local function parseLines(text)
+                local list = {}
+                for line in string.gmatch(text, "[^\r\n]+") do
+                    local trimmed = line:match("^%s*(.-)%s*$")
+                    if trimmed and trimmed ~= "" then
+                        table.insert(list, trimmed)
+                    end
+                end
+                return list
+            end
+            
+            local newData = {
+                instituciones = parseLines(managerProps.instituciones_text),
+                areas = parseLines(managerProps.areas_text),
+                actividades = parseLines(managerProps.actividades_text),
+                ubicaciones = parseLines(managerProps.ubicaciones_text)
+            }
+            
+            Data.saveAll(newData)
+            LrDialogs.message("Guardado", "Los datos se han actualizado correctamente.", "info")
+        end
+    end)
+end
+
 function Dialog.show(photos)
     LrFunctionContext.callWithContext("AutoTag Dialog", function(context)
         local f = LrView.osFactory()
@@ -66,6 +215,12 @@ function Dialog.show(photos)
         props.area = prefs.lastArea or ""
         props.activity = prefs.lastActivity or ""
         props.location = prefs.lastLocation or ""
+        
+        -- Listas acumulativas (múltiples valores)
+        props.institutions_list = {} -- Lista de instituciones agregadas
+        props.areas_list = {}
+        props.activities_list = {}
+        props.locations_list = {}
         
         -- Listas dinámicas para los combos
         props.institution_items = municipalityData.instituciones
@@ -149,10 +304,10 @@ function Dialog.show(photos)
                 local contextData = {
                     userContext = props.userContext,
                     municipalityData = {
-                        institution = props.institution,
-                        area = props.area,
-                        activity = props.activity,
-                        location = props.location
+                        institutions = props.institution and {props.institution} or {},
+                        areas = props.area and {props.area} or {},
+                        activities = props.activity and {props.activity} or {},
+                        locations = props.location and {props.location} or {}
                     }
                 }
                 
@@ -220,10 +375,10 @@ function Dialog.show(photos)
                 local contextData = {
                     userContext = props.userContext,
                     municipalityData = {
-                        institution = props.institution,
-                        area = props.area,
-                        activity = props.activity,
-                        location = props.location
+                        institutions = props.institutions_list,
+                        areas = props.areas_list,
+                        activities = props.activities_list,
+                        locations = props.locations_list
                     }
                 }
 
@@ -289,10 +444,10 @@ function Dialog.show(photos)
                   end
                  
                  local muniData = {
-                    institution = props.institution,
-                    area = props.area,
-                    activity = props.activity,
-                    location = props.location
+                    institutions = props.institutions_list,
+                    areas = props.areas_list,
+                    activities = props.activities_list,
+                    locations = props.locations_list
                  }
                  
                  -- Usar LrTasks.pcall para permitir yielding (necesario para withWriteAccessDo)
@@ -310,43 +465,24 @@ function Dialog.show(photos)
                     LrDialogs.message("Guardado", "Los metadatos se han guardado en la foto.", "info")
                  else
                     props.statusMessage = "✗ Error al guardar: " .. tostring(err)
+                props.statusMessage = "✗ Error al guardar: " .. tostring(err)
                     LrDialogs.message("Error de Guardado", "No se pudieron guardar los metadatos:\n" .. tostring(err), "critical")
                  end
             end)
         end
 
-        -- UI Components
-        local function createDropdown(title, propName, categoryName)
+        -- UI Components - Dropdowns simples (funcional)
+        local function createDropdown(title, propName, category)
             return f:row {
-                f:static_text { title = title, width = 100, alignment = 'right' },
+                f:static_text { title = title, width = 120, alignment = 'right' },
                 f:combo_box {
                     value = LrView.bind(propName),
                     items = LrView.bind {
-                        key = propName .. "_items", -- Binding dinámico para la lista
+                        key = category,
                         bind_to_object = props
                     },
                     width = 250,
                     immediate = true
-                },
-                f:push_button {
-                    title = "+",
-                    width = 25,
-                    action = function()
-                        local value = props[propName]
-                        if not value or value == "" then
-                            LrDialogs.message("Atención", "Por favor escribe un valor antes de agregarlo.", "info")
-                            return
-                        end
-                        
-                        if Data.addItem(categoryName, value) then
-                            LrDialogs.message("Guardado", "Se agregó '" .. value .. "' a la lista de " .. title, "info")
-                            -- Actualizar la lista en la UI
-                            local newData = Data.load()
-                            props[propName .. "_items"] = newData[categoryName]
-                        else
-                            LrDialogs.message("Información", "El valor '" .. value .. "' ya existe.", "info")
-                        end
-                    end
                 }
             }
         end
@@ -364,6 +500,18 @@ function Dialog.show(photos)
                         value = LrView.bind('userContext'),
                         width_in_chars = 50,
                         placeholder = "Ej: Entrega de obras en el sector norte..."
+                    },
+                    f:push_button {
+                        title = "✏️ Gestionar Datos",
+                        action = function()
+                            showDataManager()
+                            -- Recargar datos después de editar
+                            local newData = Data.load()
+                            props.institution_items = newData.instituciones
+                            props.area_items = newData.areas
+                            props.activity_items = newData.actividades
+                            props.location_items = newData.ubicaciones
+                        end
                     }
                 },
                 f:row {
@@ -465,7 +613,7 @@ function Dialog.show(photos)
                 f:edit_field { 
                     value = LrView.bind('keywords'), 
                     fill_horizontal = 1, 
-                    height_in_lines = 6, -- Más espacio para ver todas las keywords
+                    height_in_lines = 12, -- Mucho más espacio para ver todas las keywords
                     immediate = true 
                 },
             }
