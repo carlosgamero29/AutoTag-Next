@@ -2,7 +2,7 @@ return {
     LrSdkVersion = 6.0,
     LrSdkMinimumVersion = 6.0,
     
-    LrToolkitIdentifier = 'com.carlosgamero.autotagnext.v3', -- New ID to clear registry
+    LrToolkitIdentifier = 'com.carlosgamero.autotagnext.v5', -- Force refresh v5
     LrPluginName = 'AutoTag Next',
     LrPluginInfoUrl = 'https://github.com/carlosgamero29/AutoTag-Next',
     
@@ -10,8 +10,22 @@ return {
     
     LrLibraryMenuItems = {
         {
-            title = "AutoTag Next - Analizar Fotos",
+            title = "AutoTag Next (Biblioteca)",
             file = "Main.lua",
+        }
+    },
+
+    LrFileMenuItems = {
+        {
+            title = "AutoTag Next (Archivo)",
+            file = "Main.lua",
+        }
+    },
+    
+    LrHelpMenuItems = {
+        {
+            title = "Ayuda AutoTag Next",
+            file = "Main.lua", -- Just for testing visibility
         }
     },
     
