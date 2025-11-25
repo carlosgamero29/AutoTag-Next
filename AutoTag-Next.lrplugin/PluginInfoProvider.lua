@@ -31,13 +31,139 @@ function PluginInfoProvider.sectionsForTopOfDialog(f, propertyTable)
     if prefs.saveDescription == nil then prefs.saveDescription = true end
     if prefs.saveKeywords == nil then prefs.saveKeywords = true end
     
+    -- Category names (empty = use defaults)
+    if prefs.categoryName1 == nil then prefs.categoryName1 = "" end
+    if prefs.categoryName2 == nil then prefs.categoryName2 = "" end
+    if prefs.categoryName3 == nil then prefs.categoryName3 = "" end
+    if prefs.categoryName4 == nil then prefs.categoryName4 = "" end
+    
+    -- Initialize active preset
+    if prefs.activePreset == nil then prefs.activePreset = "municipality" end
+    
     -- Prepare Preset Items
     local presetItems = {}
     for _, p in ipairs(Presets) do
         table.insert(presetItems, { title = p.name, value = p.id })
     end
     
+    -- Prepare Data Preset Items
+    local dataPresetItems = {
+        { title = "Municipalidad", value = "municipality" },
+        { title = "Bodas", value = "weddings" },
+        { title = "Prensa", value = "press" },
+        { title = "Personal", value = "personal" }
+    }
+    
     return {
+        {
+            title = "Configuración de Metadatos y Contexto",
+            
+            -- Preset de Datos
+            f:group_box {
+                title = "Preset de Datos",
+                
+                f:row {
+                    f:static_text { 
+                        title = "Preset Activo:", 
+                        width = LrView.share('label_width'), 
+                        alignment = 'right' 
+                    },
+                    f:popup_menu {
+                        value = LrView.bind { 
+                            key = 'activePreset', 
+                            bind_to_object = prefs,
+                            transform = function(value, fromModel)
+                                if fromModel then
+                                    if value then
+                                        Data.setActivePreset(value)
+                                    end
+                                    return value
+                                else
+                                    return value
+                                end
+                            end
+                        },
+                        items = dataPresetItems,
+                        width = 200
+                    }
+                },
+                
+                f:static_text {
+                    title = "Cada preset incluye listas predefinidas y nombres de categorías apropiados.",
+                    font = "<system/small>",
+                    text_color = import 'LrColor'(0.5, 0.5, 0.5)
+                }
+            },
+            
+            f:separator { fill_horizontal = 1 },
+            
+            -- Personalización de Categorías
+            f:group_box {
+                title = "Personalización de Categorías",
+                
+                f:static_text {
+                    title = "Sobrescribe los nombres de categorías del preset activo (opcional):",
+                    font = "<system/small>"
+                },
+                
+                f:row {
+                    f:static_text { title = "Categoría 1:", width = LrView.share('label_width'), alignment = 'right' },
+                    f:edit_field {
+                        value = LrView.bind { key = 'categoryName1', bind_to_object = prefs },
+                        width_in_chars = 20,
+                        placeholder = "Usar nombre del preset"
+                    }
+                },
+                
+                f:row {
+                    f:static_text { title = "Categoría 2:", width = LrView.share('label_width'), alignment = 'right' },
+                    f:edit_field {
+                        value = LrView.bind { key = 'categoryName2', bind_to_object = prefs },
+                        width_in_chars = 20,
+                        placeholder = "Usar nombre del preset"
+                    }
+                },
+                
+                f:row {
+                    f:static_text { title = "Categoría 3:", width = LrView.share('label_width'), alignment = 'right' },
+                    f:edit_field {
+                        value = LrView.bind { key = 'categoryName3', bind_to_object = prefs },
+                        width_in_chars = 20,
+                        placeholder = "Usar nombre del preset"
+                    }
+                },
+                
+                f:row {
+                    f:static_text { title = "Categoría 4:", width = LrView.share('label_width'), alignment = 'right' },
+                    f:edit_field {
+                        value = LrView.bind { key = 'categoryName4', bind_to_object = prefs },
+                        width_in_chars = 20,
+                        placeholder = "Usar nombre del preset"
+                    }
+                }
+            },
+            
+            f:separator { fill_horizontal = 1 },
+            
+            -- Ubicación de datos
+            f:group_box {
+                title = "Almacenamiento",
+                
+                f:row {
+                    f:static_text { 
+                        title = "Archivo de datos:", 
+                        width = LrView.share('label_width'), 
+                        alignment = 'right' 
+                    },
+                    f:edit_field { 
+                        value = "Documentos/AutoTagNext_Data/user_data.json",
+                        width = 300,
+                        enabled = false
+                    }
+                }
+            }
+        },
+        
         {
             title = "Configuración de IA",
             
@@ -152,23 +278,6 @@ function PluginInfoProvider.sectionsForTopOfDialog(f, propertyTable)
                 f:checkbox { title = "Título", value = LrView.bind { key = 'saveTitle', bind_to_object = prefs } },
                 f:checkbox { title = "Descripción", value = LrView.bind { key = 'saveDescription', bind_to_object = prefs } },
                 f:checkbox { title = "Palabras Clave", value = LrView.bind { key = 'saveKeywords', bind_to_object = prefs } }
-            }
-        },
-        
-        {
-            title = "Gestión de Datos",
-            
-            f:row {
-                f:static_text { 
-                    title = "Ubicación del archivo de datos:", 
-                    width = LrView.share('label_width'), 
-                    alignment = 'right' 
-                },
-                f:edit_field { 
-                    value = "Documentos/AutoTagNext_Data/user_data.json",
-                    width = 300,
-                    enabled = false -- Read-only
-                }
             }
         }
     }

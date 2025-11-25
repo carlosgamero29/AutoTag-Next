@@ -147,26 +147,58 @@ function Dialog.show(photos)
             -- systemPrompt is now dynamic
         }
         
-        local municipalityData = Data.load()
-
         -- Initialize props
         props.photos = photos
         props.currentIndex = 1
         props.totalPhotos = #photos
-        props.currentPhoto = photos[1]
+        props.currentPhoto = photos[1] -- Inicializar con la primera foto
         
-        -- Shared Context
+        local prefs = LrPrefs.prefsForPlugin()
+        local presetData = Data.getActivePreset() -- Cargar preset activo
+        
+        -- Obtener nombres de categorías del preset (con fallback a personalizados o defaults)
+        local function getCategoryName(num, presetDefault)
+            -- Primero intentar usar el nombre personalizado del usuario
+            local customName = prefs['categoryName' .. num]
+            if customName and customName ~= "" then
+                return customName
+            end
+            -- Si no hay personalizado, usar el del preset
+            if presetData.categoryNames and presetData.categoryNames[num] then
+                return presetData.categoryNames[num]
+            end
+            -- Fallback final
+            return presetDefault
+        end
+        
+        local cat1Name = getCategoryName(1, "Institución")
+        local cat2Name = getCategoryName(2, "Área")
+        local cat3Name = getCategoryName(3, "Actividad")
+        local cat4Name = getCategoryName(4, "Lugar")
+        
         props.userContext = prefs.lastUserContext or ""
         props.institution = prefs.lastInstitution or ""
         props.area = prefs.lastArea or ""
         props.activity = prefs.lastActivity or ""
         props.location = prefs.lastLocation or ""
         
-        -- Cargar datos
-        props.instituciones = municipalityData.instituciones or {}
-        props.areas = municipalityData.areas or {}
-        props.actividades = municipalityData.actividades or {}
-        props.ubicaciones = municipalityData.ubicaciones or {}
+        -- Cargar datos del preset activo
+        props.instituciones = presetData.instituciones or {}
+        props.areas = presetData.areas or {}
+        props.actividades = presetData.actividades or {}
+        props.ubicaciones = presetData.ubicaciones or {}
+        
+        -- Listas de seleccionados (múltiples valores)
+        props.selected_instituciones = {}
+        props.selected_areas = {}
+        props.selected_actividades = {}
+        props.selected_ubicaciones = {}
+        
+        -- Valores actuales en los dropdowns (para agregar)
+        props.temp_institution = ""
+        props.temp_area = ""
+        props.temp_activity = ""
+        props.temp_location = ""
         
         -- Metadata
         props.title = ""
@@ -185,6 +217,15 @@ function Dialog.show(photos)
             
             props.title = photo:getFormattedMetadata('title') or ""
             props.description = photo:getFormattedMetadata('caption') or ""
+            
+            -- Cargar keywords existentes
+            local existingKeywords = photo:getFormattedMetadata('keywordTags')
+            if existingKeywords then
+                props.keywords = existingKeywords
+            else
+                props.keywords = ""
+            end
+            
             props.photoCounter = props.currentIndex .. " / " .. props.totalPhotos
         end
 
@@ -246,10 +287,10 @@ function Dialog.show(photos)
                 local contextData = {
                     userContext = props.userContext,
                     municipalityData = {
-                        institutions = props.institution and {props.institution} or {},
-                        areas = props.area and {props.area} or {},
-                        activities = props.activity and {props.activity} or {},
-                        locations = props.location and {props.location} or {}
+                        institutions = props.selected_instituciones or {},
+                        areas = props.selected_areas or {},
+                        activities = props.selected_actividades or {},
+                        locations = props.selected_ubicaciones or {}
                     }
                 }
                 
@@ -413,76 +454,146 @@ function Dialog.show(photos)
             end)
         end
 
-        -- UI Components - Dropdowns con botón (+) para agregar
-        local function createDropdown(title, propName, category)
-            return f:row {
-                f:static_text { title = title, width = 120, alignment = 'right' },
-                f:combo_box {
-                    value = LrView.bind(propName),
-                    items = LrView.bind {
-                        key = category,
-                        bind_to_object = props
+        -- UI Components - Dropdown con lista acumulativa para múltiples valores
+        local function createDropdown(title, tempPropName, category, selectedListProp)
+            return f:column {
+                spacing = f:control_spacing(),
+                fill_horizontal = 1,
+                
+                -- Fila superior: Label + Dropdown + Botones
+                f:row {
+                    f:static_text { title = title, width = 120, alignment = 'right' },
+                    f:combo_box {
+                        value = LrView.bind(tempPropName),
+                        items = LrView.bind {
+                            key = category,
+                            bind_to_object = props
+                        },
+                        width = 180,
+                        immediate = true
                     },
-                    width = 200,
-                    immediate = true
-                },
-                f:push_button {
-                    title = "➕",
-                    width = 30,
-                    tooltip = "Agregar nuevo elemento",
-                    action = function()
-                        LrFunctionContext.callWithContext("Agregar", function(context)
-                            local addProps = LrBinding.makePropertyTable(context)
-                            addProps.newValue = ""
-                            
-                            local result = LrDialogs.presentModalDialog {
-                                title = "Agregar a " .. title,
-                                contents = f:column {
-                                    spacing = f:control_spacing(),
-                                    bind_to_object = addProps,
-                                    
-                                    f:static_text { title = "Nuevo valor:" },
-                                    f:edit_field {
-                                        value = LrView.bind('newValue'),
-                                        width_in_chars = 30,
-                                        immediate = true
-                                    }
-                                },
-                                actionVerb = "Agregar",
-                                cancelVerb = "Cancelar"
-                            }
-                            
-                            if result == "ok" and addProps.newValue ~= "" then
-                                -- Cargar datos actuales
-                                local currentData = Data.load()
-                                local list = currentData[category] or {}
+                    f:push_button {
+                        title = "Agregar",
+                        width = 70,
+                        enabled = LrView.bind {
+                            key = tempPropName,
+                            transform = function(val) return val ~= nil and val ~= "" end
+                        },
+                        action = function()
+                            local value = props[tempPropName]
+                            if value and value ~= "" then
+                                local list = props[selectedListProp] or {}
                                 
-                                -- Verificar duplicados
+                                -- Verificar si ya está en la lista
                                 local exists = false
                                 for _, v in ipairs(list) do
-                                    if v == addProps.newValue then
+                                    if v == value then
                                         exists = true
                                         break
                                     end
                                 end
                                 
                                 if not exists then
-                                    -- Agregar nuevo elemento
-                                    table.insert(list, addProps.newValue)
-                                    currentData[category] = list
-                                    Data.saveAll(currentData)
-                                    
-                                    -- Actualizar la UI
-                                    props[category] = list
-                                    props[propName] = addProps.newValue -- Seleccionar el nuevo valor
-                                    
-                                    LrDialogs.message("Agregado", "'" .. addProps.newValue .. "' ha sido agregado.", "info")
-                                else
-                                    LrDialogs.message("Duplicado", "'" .. addProps.newValue .. "' ya existe en la lista.", "warning")
+                                    local newList = {}
+                                    for _, v in ipairs(list) do table.insert(newList, v) end
+                                    table.insert(newList, value)
+                                    props[selectedListProp] = newList
                                 end
                             end
-                        end)
-                    end
+                        end
+                    },
+                    f:push_button {
+                        title = "➕",
+                        width = 30,
+                        tooltip = "Agregar nuevo elemento a la lista maestra",
+                        action = function()
+                            LrFunctionContext.callWithContext("Agregar", function(context)
+                                local addProps = LrBinding.makePropertyTable(context)
+                                addProps.newValue = ""
+                                
+                                local result = LrDialogs.presentModalDialog {
+                                    title = "Agregar a " .. title,
+                                    contents = f:column {
+                                        spacing = f:control_spacing(),
+                                        bind_to_object = addProps,
+                                        
+                                        f:static_text { title = "Nuevo valor:" },
+                                        f:edit_field {
+                                            value = LrView.bind('newValue'),
+                                            width_in_chars = 30,
+                                            immediate = true
+                                        }
+                                    },
+                                    actionVerb = "Agregar",
+                                    cancelVerb = "Cancelar"
+                                }
+                                
+                                if result == "ok" and addProps.newValue ~= "" then
+                                    local currentData = Data.load()
+                                    local list = currentData[category] or {}
+                                    
+                                    local exists = false
+                                    for _, v in ipairs(list) do
+                                        if v == addProps.newValue then
+                                            exists = true
+                                            break
+                                        end
+                                    end
+                                    
+                                    if not exists then
+                                        table.insert(list, addProps.newValue)
+                                        currentData[category] = list
+                                        Data.saveAll(currentData)
+                                        props[category] = list
+                                        props[tempPropName] = addProps.newValue
+                                        LrDialogs.message("Agregado", "'" .. addProps.newValue .. "' ha sido agregado.", "info")
+                                    else
+                                        LrDialogs.message("Duplicado", "'" .. addProps.newValue .. "' ya existe en la lista.", "warning")
+                                    end
+                                end
+                            end)
+                        end
+                    }
+                },
+                
+                -- Lista de seleccionados (simplificada)
+                f:row {
+                    f:static_text { title = "", width = 120 }, -- Spacer
+                    f:column {
+                        spacing = 3,
+                        fill_horizontal = 1,
+                        
+                        -- Mostrar seleccionados como texto
+                        f:static_text {
+                            title = LrView.bind {
+                                key = selectedListProp,
+                                transform = function(list)
+                                    if not list or #list == 0 then
+                                        return "Seleccionados: (ninguno)"
+                                    else
+                                        return "Seleccionados: " .. table.concat(list, ", ")
+                                    end
+                                end
+                            },
+                            font = "<system/small>",
+                            text_color = import 'LrColor'(0.2, 0.5, 1.0),
+                            width = 300,
+                            wraps = true
+                        },
+                        
+                        -- Botón para limpiar todos
+                        f:push_button {
+                            title = "Limpiar todos",
+                            width = 100,
+                            enabled = LrView.bind {
+                                key = selectedListProp,
+                                transform = function(list) return list and #list > 0 end
+                            },
+                            action = function()
+                                props[selectedListProp] = {}
+                            end
+                        }
+                    }
                 }
             }
         end
@@ -502,16 +613,19 @@ function Dialog.show(photos)
                         placeholder = "Ej: Entrega de obras en el sector norte..."
                     }
                 },
+                
+                f:separator { fill_horizontal = 1 },
+                
                 f:row {
                     f:column {
                         spacing = f:control_spacing(),
-                        createDropdown("Institución:", 'institution', 'instituciones'),
-                        createDropdown("Área:", 'area', 'areas'),
+                        createDropdown(cat1Name .. ":", 'temp_institution', 'instituciones', 'selected_instituciones'),
+                        createDropdown(cat2Name .. ":", 'temp_area', 'areas', 'selected_areas'),
                     },
                     f:column {
                         spacing = f:control_spacing(),
-                        createDropdown("Actividad:", 'activity', 'actividades'),
-                        createDropdown("Lugar:", 'location', 'ubicaciones'),
+                        createDropdown(cat3Name .. ":", 'temp_activity', 'actividades', 'selected_actividades'),
+                        createDropdown(cat4Name .. ":", 'temp_location', 'ubicaciones', 'selected_ubicaciones'),
                     }
                 }
             }

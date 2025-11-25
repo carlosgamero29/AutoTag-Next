@@ -10,24 +10,17 @@ return {
     
     LrLibraryMenuItems = {
         {
-            title = "AutoTag Next",
+            title = "AutoTag Next - Análisis con IA",
             file = "Main.lua",
         }
     },
 
-    LrFileMenuItems = {
+    LrExportMenuItems = {
         {
-            title = "AutoTag Next",
+            title = "AutoTag Next - Análisis con IA",
             file = "Main.lua",
         }
     },
     
-    LrHelpMenuItems = {
-        {
-            title = "Ayuda AutoTag Next",
-            file = "Main.lua", -- Just for testing visibility
-        }
-    },
-    
-    VERSION = { major = 1, minor = 0, revision = 1, build = 1 },
+    VERSION = { major = 1, minor = 0, revision = 2, build = 2 },
 }
