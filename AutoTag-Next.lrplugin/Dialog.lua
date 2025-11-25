@@ -18,153 +18,99 @@ local LrPrefs = import 'LrPrefs'
 
 local Dialog = {}
 
--- Función para mostrar la ventana de gestión de datos
-local function showDataManager()
-    LrFunctionContext.callWithContext("Gestionar Datos", function(context)
+-- Función para editar una categoría individual
+local function editCategory(categoryName, categoryKey)
+    LrFunctionContext.callWithContext("Editar " .. categoryName, function(context)
         local f = LrView.osFactory()
-        local managerProps = LrBinding.makePropertyTable(context)
+        local editProps = LrBinding.makePropertyTable(context)
         
         -- Cargar datos actuales
         local currentData = Data.load()
+        local items = currentData[categoryKey] or {}
         
-        -- Asegurar que tenemos datos (debugging)
-        if not currentData.instituciones or #currentData.instituciones == 0 then
-            currentData.instituciones = {"Municipalidad Provincial"}
-        end
-        if not currentData.areas or #currentData.areas == 0 then
-            currentData.areas = {"Alcaldía"}
-        end
-        if not currentData.actividades or #currentData.actividades == 0 then
-            currentData.actividades = {"Inauguración"}
-        end
-        if not currentData.ubicaciones or #currentData.ubicaciones == 0 then
-            currentData.ubicaciones = {"Plaza de Armas"}
-        end
-        
-        -- Crear listas editables con fallback
-        local inst_text = table.concat(currentData.instituciones or {}, "\n")
-        local area_text = table.concat(currentData.areas or {}, "\n")
-        local act_text = table.concat(currentData.actividades or {}, "\n")
-        local ubi_text = table.concat(currentData.ubicaciones or {}, "\n")
-        
-        -- Debug: Si todo está vacío, usar placeholder
-        if inst_text == "" then inst_text = "Municipalidad Provincial\nGobierno Regional" end
-        if area_text == "" then area_text = "Alcaldía\nGerencia Municipal" end
-        if act_text == "" then act_text = "Inauguración\nInspección" end
-        if ubi_text == "" then ubi_text = "Plaza de Armas\nPalacio Municipal" end
-        
-        managerProps.instituciones_text = inst_text
-        managerProps.areas_text = area_text
-        managerProps.actividades_text = act_text
-        managerProps.ubicaciones_text = ubi_text
-        
-        local contents = f:column {
-            spacing = f:control_spacing(),
-            fill_horizontal = 1,
-            
-            f:static_text {
-                title = "📝 Instrucciones:",
-                font = "<system/bold>"
-            },
-            f:static_text {
-                title = "• Escribe un valor por línea\n• Usa Shift+Enter para nueva línea (NO solo Enter)\n• Cuando termines, haz clic en '💾 Guardar Cambios'",
-                height_in_lines = 3
-            },
-            
-            f:separator { fill_horizontal = 1 },
-            
-            f:row {
-                spacing = f:control_spacing(),
-                fill_horizontal = 1,
-                
-                -- Columna 1: Instituciones y Áreas
-                f:column {
-                    spacing = f:control_spacing(),
-                    fill_horizontal = 1,
-                    
-                    f:static_text { title = "Instituciones:", font = "<system/bold>" },
-                    f:edit_field {
-                        value = LrView.bind('instituciones_text'),
-                        fill_horizontal = 1,
-                        height_in_lines = 10,
-                        width_in_chars = 30,
-                        immediate = true
-                    },
-                    
-                    f:static_text { title = "Áreas:", font = "<system/bold>" },
-                    f:edit_field {
-                        value = LrView.bind('areas_text'),
-                        fill_horizontal = 1,
-                        height_in_lines = 10,
-                        width_in_chars = 30,
-                        immediate = true
-                    }
-                },
-                
-                -- Columna 2: Actividades y Lugares
-                f:column {
-                    spacing = f:control_spacing(),
-                    fill_horizontal = 1,
-                    
-                    f:static_text { title = "Actividades:", font = "<system/bold>" },
-                    f:edit_field {
-                        value = LrView.bind('actividades_text'),
-                        fill_horizontal = 1,
-                        height_in_lines = 10,
-                        width_in_chars = 30,
-                        immediate = true
-                    },
-                    
-                    f:static_text { title = "Lugares:", font = "<system/bold>" },
-                    f:edit_field {
-                        value = LrView.bind('ubicaciones_text'),
-                        fill_horizontal = 1,
-                        height_in_lines = 10,
-                        width_in_chars = 30,
-                        immediate = true
-                    }
-                }
-            },
-            
-            f:static_text {
-                title = "Nota: Las líneas vacías serán eliminadas automáticamente.",
-                text_color = import 'LrColor'(0.5, 0.5, 0.5)
-            }
-        }
+        -- Convertir array a texto (una línea por item)
+        editProps.itemsText = table.concat(items, "\n")
         
         local result = LrDialogs.presentModalDialog {
-            title = "✏️ Gestionar Datos del Plugin",
-            contents = contents,
-            bind_to_object = managerProps,
-            actionVerb = "< hidden >",  -- Ocultar botón OK para que Enter no cierre
-            cancelVerb = "Cerrar",
-            otherVerb = "💾 Guardar Cambios"
+            title = "Editar " .. categoryName,
+            contents = f:column {
+                spacing = f:control_spacing(),
+                bind_to_object = editProps,
+                
+                f:static_text {
+                    title = "Edita la lista (una por línea):",
+                    font = "<system/bold>"
+                },
+                
+                f:edit_field {
+                    value = LrView.bind('itemsText'),
+                    height_in_lines = 15,
+                    width_in_chars = 40,
+                    immediate = true
+                },
+                
+                f:static_text {
+                    title = "Tip: Escribe cada elemento en una línea nueva.",
+                    font = "<system/small>"
+                }
+            },
+            actionVerb = "Guardar",
+            cancelVerb = "Cancelar"
         }
         
-        if result == "other" then
-            -- Procesar y guardar los datos
-            local function parseLines(text)
-                local list = {}
-                for line in string.gmatch(text, "[^\r\n]+") do
-                    local trimmed = line:match("^%s*(.-)%s*$")
-                    if trimmed and trimmed ~= "" then
-                        table.insert(list, trimmed)
-                    end
+        if result == "ok" then
+            -- Convertir texto a array
+            local newItems = {}
+            for line in editProps.itemsText:gmatch("[^\r\n]+") do
+                local trimmed = line:match("^%s*(.-)%s*$") -- Trim whitespace
+                if trimmed ~= "" then
+                    table.insert(newItems, trimmed)
                 end
-                return list
             end
             
-            local newData = {
-                instituciones = parseLines(managerProps.instituciones_text),
-                areas = parseLines(managerProps.areas_text),
-                actividades = parseLines(managerProps.actividades_text),
-                ubicaciones = parseLines(managerProps.ubicaciones_text)
-            }
+            -- Guardar
+            currentData[categoryKey] = newItems
+            Data.saveAll(currentData)
             
-            Data.saveAll(newData)
-            LrDialogs.message("Guardado", "Los datos se han actualizado correctamente.", "info")
+            return true -- Indica que se guardó
         end
+        
+        return false
     end)
+end
+
+-- Función para mostrar el menú de gestión de datos
+local function showDataManager()
+    -- Mostrar menú de opciones directamente
+    local selectedOption = LrDialogs.presentChoiceDialog {
+        title = "Gestionar Datos",
+        message = "Selecciona qué lista deseas editar:",
+        choices = {
+            { title = "📋 Instituciones", value = "instituciones" },
+            { title = "🏢 Áreas", value = "areas" },
+            { title = "🎯 Actividades", value = "actividades" },
+            { title = "📍 Lugares", value = "ubicaciones" },
+            { title = "🔄 Restaurar Datos de Fábrica", value = "restore" }
+        }
+    }
+    
+    if not selectedOption then return end -- Usuario canceló
+    
+    if selectedOption == "restore" then
+        if LrDialogs.confirm("¿Restaurar Datos?", "Esto borrará tus listas personalizadas y restaurará los valores originales. ¿Estás seguro?", "Sí, Restaurar", "Cancelar") == "ok" then
+            local path = Data.getUserDataPath()
+            import 'LrFileUtils'.delete(path)
+            LrDialogs.message("Restaurado", "Los datos han sido restaurados a los valores de fábrica.", "info")
+        end
+    elseif selectedOption == "instituciones" then
+        editCategory("Instituciones", "instituciones")
+    elseif selectedOption == "areas" then
+        editCategory("Áreas", "areas")
+    elseif selectedOption == "actividades" then
+        editCategory("Actividades", "actividades")
+    elseif selectedOption == "ubicaciones" then
+        editCategory("Lugares", "ubicaciones")
+    end
 end
 
 function Dialog.show(photos)
@@ -216,17 +162,11 @@ function Dialog.show(photos)
         props.activity = prefs.lastActivity or ""
         props.location = prefs.lastLocation or ""
         
-        -- Listas acumulativas (múltiples valores)
-        props.institutions_list = {} -- Lista de instituciones agregadas
-        props.areas_list = {}
-        props.activities_list = {}
-        props.locations_list = {}
-        
-        -- Listas dinámicas para los combos
-        props.institution_items = municipalityData.instituciones
-        props.area_items = municipalityData.areas
-        props.activity_items = municipalityData.actividades
-        props.location_items = municipalityData.ubicaciones
+        -- Cargar datos
+        props.instituciones = municipalityData.instituciones or {}
+        props.areas = municipalityData.areas or {}
+        props.actividades = municipalityData.actividades or {}
+        props.ubicaciones = municipalityData.ubicaciones or {}
         
         -- Metadata
         props.title = ""
@@ -284,9 +224,11 @@ function Dialog.show(photos)
 
         -- Analysis Logic
         local function analyzeCurrent()
+            if props.isAnalyzing then return end
+            props.isAnalyzing = true
+            props.statusMessage = "Analizando foto actual..."
+            
             LrTasks.startAsyncTask(function()
-                props.isAnalyzing = true
-                props.statusMessage = "Iniciando análisis..."
                 local startTime = LrDate.currentTime()
                 
                 -- Crear barra de progreso nativa de Lightroom
@@ -471,7 +413,7 @@ function Dialog.show(photos)
             end)
         end
 
-        -- UI Components - Dropdowns simples (funcional)
+        -- UI Components - Dropdowns con botón (+) para agregar
         local function createDropdown(title, propName, category)
             return f:row {
                 f:static_text { title = title, width = 120, alignment = 'right' },
@@ -481,8 +423,66 @@ function Dialog.show(photos)
                         key = category,
                         bind_to_object = props
                     },
-                    width = 250,
+                    width = 200,
                     immediate = true
+                },
+                f:push_button {
+                    title = "➕",
+                    width = 30,
+                    tooltip = "Agregar nuevo elemento",
+                    action = function()
+                        LrFunctionContext.callWithContext("Agregar", function(context)
+                            local addProps = LrBinding.makePropertyTable(context)
+                            addProps.newValue = ""
+                            
+                            local result = LrDialogs.presentModalDialog {
+                                title = "Agregar a " .. title,
+                                contents = f:column {
+                                    spacing = f:control_spacing(),
+                                    bind_to_object = addProps,
+                                    
+                                    f:static_text { title = "Nuevo valor:" },
+                                    f:edit_field {
+                                        value = LrView.bind('newValue'),
+                                        width_in_chars = 30,
+                                        immediate = true
+                                    }
+                                },
+                                actionVerb = "Agregar",
+                                cancelVerb = "Cancelar"
+                            }
+                            
+                            if result == "ok" and addProps.newValue ~= "" then
+                                -- Cargar datos actuales
+                                local currentData = Data.load()
+                                local list = currentData[category] or {}
+                                
+                                -- Verificar duplicados
+                                local exists = false
+                                for _, v in ipairs(list) do
+                                    if v == addProps.newValue then
+                                        exists = true
+                                        break
+                                    end
+                                end
+                                
+                                if not exists then
+                                    -- Agregar nuevo elemento
+                                    table.insert(list, addProps.newValue)
+                                    currentData[category] = list
+                                    Data.saveAll(currentData)
+                                    
+                                    -- Actualizar la UI
+                                    props[category] = list
+                                    props[propName] = addProps.newValue -- Seleccionar el nuevo valor
+                                    
+                                    LrDialogs.message("Agregado", "'" .. addProps.newValue .. "' ha sido agregado.", "info")
+                                else
+                                    LrDialogs.message("Duplicado", "'" .. addProps.newValue .. "' ya existe en la lista.", "warning")
+                                end
+                            end
+                        end)
+                    end
                 }
             }
         end
@@ -500,18 +500,6 @@ function Dialog.show(photos)
                         value = LrView.bind('userContext'),
                         width_in_chars = 50,
                         placeholder = "Ej: Entrega de obras en el sector norte..."
-                    },
-                    f:push_button {
-                        title = "✏️ Gestionar Datos",
-                        action = function()
-                            showDataManager()
-                            -- Recargar datos después de editar
-                            local newData = Data.load()
-                            props.institution_items = newData.instituciones
-                            props.area_items = newData.areas
-                            props.activity_items = newData.actividades
-                            props.location_items = newData.ubicaciones
-                        end
                     }
                 },
                 f:row {

@@ -57,9 +57,20 @@ function Data.load()
         if content then
             local status, data = pcall(JSON.decode, content)
             if status and data then
-                -- Fusionar con defaults para asegurar estructura
+                -- Fusionar con defaults para asegurar estructura y tipos correctos
                 for k, v in pairs(defaultData) do
-                    if not data[k] then data[k] = v end
+                    if not data[k] or type(data[k]) ~= "table" then 
+                        data[k] = v 
+                    else
+                        -- Asegurar que sea un array indexado numéricamente
+                        local arr = {}
+                        for _, item in pairs(data[k]) do
+                            if type(item) == "string" then
+                                table.insert(arr, item)
+                            end
+                        end
+                        data[k] = arr
+                    end
                 end
                 return data
             end
