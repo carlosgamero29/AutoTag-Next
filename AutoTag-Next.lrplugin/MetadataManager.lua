@@ -3,6 +3,7 @@
 
 local LrApplication = import 'LrApplication'
 local LrTasks = import 'LrTasks'
+local Data = require 'Data'
 
 local MetadataManager = {}
 
@@ -180,6 +181,45 @@ function MetadataManager.applyMetadata(photos, metadata, municipalityData, optio
                         if loc and loc ~= "" then
                             local k = getKeyword(catalog, loc, locParent)
                             if k then photo:addKeyword(k) end
+                            
+                            -- Check for extended location details (District, State, Country, GPS)
+                            local details = Data.getLocationDetails(loc)
+                            if details then
+                                -- Apply GPS
+                                if details.gps and details.gps.latitude and details.gps.longitude then
+                                    photo:setRawMetadata('gps', {
+                                        latitude = details.gps.latitude,
+                                        longitude = details.gps.longitude
+                                    })
+                                end
+                                
+                                -- Apply Hierarchy: Lugar > Distrito > [Nombre]
+                                if details.district and details.district ~= "" then
+                                    local distParent = getKeyword(catalog, "Distrito", locParent)
+                                    if distParent then
+                                        local distKw = getKeyword(catalog, details.district, distParent)
+                                        if distKw then photo:addKeyword(distKw) end
+                                    end
+                                end
+                                
+                                -- Apply Hierarchy: Lugar > Estado > [Nombre]
+                                if details.state and details.state ~= "" then
+                                    local stateParent = getKeyword(catalog, "Estado", locParent)
+                                    if stateParent then
+                                        local stateKw = getKeyword(catalog, details.state, stateParent)
+                                        if stateKw then photo:addKeyword(stateKw) end
+                                    end
+                                end
+                                
+                                -- Apply Hierarchy: Lugar > País > [Nombre]
+                                if details.country and details.country ~= "" then
+                                    local countryParent = getKeyword(catalog, "País", locParent)
+                                    if countryParent then
+                                        local countryKw = getKeyword(catalog, details.country, countryParent)
+                                        if countryKw then photo:addKeyword(countryKw) end
+                                    end
+                                end
+                            end
                         end
                     end
                 end

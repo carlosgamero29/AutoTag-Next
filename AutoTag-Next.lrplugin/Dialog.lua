@@ -13,6 +13,7 @@ local Presets = require 'Presets'
 local UIComponents = require 'UIComponents'
 local PhotoNavigation = require 'PhotoNavigation'
 local AnalysisLogic = require 'AnalysisLogic'
+local LocationDialog = require 'LocationDialog'
 
 local Dialog = {}
 
@@ -102,6 +103,45 @@ function Dialog.show(photos)
         props.description = ""
         props.keywords = ""
         
+        -- Location Info Display
+        props.locationInfoText = ""
+        
+        -- Watch for location changes to update info text
+        LrView.bind('temp_location') -- Ensure binding exists
+        props:addObserver('temp_location', function()
+            local loc = props.temp_location
+            if loc and loc ~= "" then
+                local details = Data.getLocationDetails(loc)
+                if details then
+                    local infoParts = {}
+                    
+                    -- Build detailed info string
+                    if details.district and details.district ~= "" then 
+                        table.insert(infoParts, "Distrito: " .. details.district) 
+                    end
+                    if details.state and details.state ~= "" then 
+                        table.insert(infoParts, "Estado: " .. details.state) 
+                    end
+                    if details.country and details.country ~= "" then 
+                        table.insert(infoParts, "País: " .. details.country) 
+                    end
+                    if details.gps and details.gps.latitude and details.gps.longitude then 
+                        table.insert(infoParts, string.format("GPS: %.4f, %.4f", details.gps.latitude, details.gps.longitude))
+                    end
+                    
+                    if #infoParts > 0 then
+                        props.locationInfoText = "📍 " .. table.concat(infoParts, " | ")
+                    else
+                        props.locationInfoText = ""
+                    end
+                else
+                    props.locationInfoText = ""
+                end
+            else
+                props.locationInfoText = ""
+            end
+        end)
+        
         -- UI State
         props.isAnalyzing = false
         props.statusMessage = "Listo para analizar " .. #photos .. " foto(s)."
@@ -123,7 +163,8 @@ function Dialog.show(photos)
                     f:static_text { title = "Contexto:", width = 100, alignment = 'right' },
                     f:edit_field {
                         value = LrView.bind('userContext'),
-                        width_in_chars = 50,
+                        width_in_chars = 80, -- Increased size
+                        height_in_lines = 2, -- Multi-line for better visibility
                         placeholder = "Ej: Entrega de obras en el sector norte..."
                     }
                 },
@@ -139,8 +180,29 @@ function Dialog.show(photos)
                     f:column {
                         spacing = f:control_spacing(),
                         UIComponents.createDropdown(f, props, cat3Name .. ":", 'temp_activity', 'actividades', 'selected_actividades'),
-                        UIComponents.createDropdown(f, props, cat4Name .. ":", 'temp_location', 'ubicaciones', 'selected_ubicaciones'),
+                        
+                        -- Location Row with Manage Button
+                        f:row {
+                            UIComponents.createDropdown(f, props, cat4Name .. ":", 'temp_location', 'ubicaciones', 'selected_ubicaciones'),
+                            f:push_button {
+                                title = "⚙️",
+                                width = 30,
+                                tooltip = "Gestionar detalles de ubicación (Distrito, GPS...)",
+                                action = function()
+                                    LocationDialog.show(props)
+                                end
+                            }
+                        }
                     }
+                },
+                
+                -- Location info display (full width below dropdowns)
+                f:static_text {
+                    title = LrView.bind('locationInfoText'),
+                    font = "<system/small>",
+                    text_color = import 'LrColor'(0.2, 0.4, 0.8),
+                    fill_horizontal = 1,
+                    visible = LrView.bind { key = 'locationInfoText', transform = function(v) return v and v ~= "" end }
                 }
             }
         }
@@ -246,10 +308,25 @@ function Dialog.show(photos)
                 action = function() AnalysisLogic.saveCurrent(props) end,
                 enabled = LrView.bind { key = 'isAnalyzing', transform = function(value) return not value end }
             },
+            f:spacer { fill_horizontal = 1 }, -- Spacer to separate batch actions
             f:push_button { 
                 title = "⚡ Analizar Todo el Lote", 
                 action = function() AnalysisLogic.analyzeBatch(props, config, getPrompt) end,
-                enabled = LrView.bind { key = 'isAnalyzing', transform = function(value) return not value end }
+                enabled = LrView.bind { key = 'isAnalyzing', transform = function(value) return not value end },
+                visible = LrView.bind { key = 'isAnalyzing', transform = function(value) return not value end }
+            },
+            f:push_button { 
+                title = "💾 Guardar Lote (Sin IA)", 
+                tooltip = "Aplica el contexto actual a todas las fotos sin analizar",
+                action = function() AnalysisLogic.saveBatch(props) end,
+                enabled = LrView.bind { key = 'isAnalyzing', transform = function(value) return not value end },
+                visible = LrView.bind { key = 'isAnalyzing', transform = function(value) return not value end }
+            },
+            f:push_button { 
+                title = "🛑 Detener Análisis", 
+                action = function() AnalysisLogic.stopAnalysis(props) end,
+                visible = LrView.bind('isAnalyzing'),
+                text_color = import 'LrColor'(1, 0, 0)
             },
         }
 

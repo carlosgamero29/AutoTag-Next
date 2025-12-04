@@ -80,6 +80,14 @@ function AnalysisLogic.analyzeCurrent(props, config, getPromptFunc)
             local duration = endTime - startTime
             props.statusMessage = string.format("✓ Análisis completado en %.2f s.", duration)
             progress:setCaption(string.format("¡Completado en %.2f s!", duration))
+            
+            -- Log to History
+            local HistoryManager = require 'HistoryManager'
+            HistoryManager.log({
+                filename = photo:getFormattedMetadata('fileName'),
+                title = result.title,
+                keywordsCount = result.keywords and #result.keywords or 0
+            })
         else
             local errorMsg = err or "Error desconocido"
             props.statusMessage = "✗ Error: " .. errorMsg
@@ -96,6 +104,7 @@ function AnalysisLogic.analyzeBatch(props, config, getPromptFunc)
     LrTasks.startAsyncTask(function()
         local prefs = LrPrefs.prefsForPlugin()
         props.isAnalyzing = true
+        props.cancelBatch = false -- Reset cancel flag
         local startTime = LrDate.currentTime()
         local progress = LrProgressScope({ title = "Analizando Lote AutoTag Next" })
         
@@ -113,7 +122,7 @@ function AnalysisLogic.analyzeBatch(props, config, getPromptFunc)
         local errorCount = 0
 
         for i, photo in ipairs(props.photos) do
-            if progress:isCanceled() then break end
+            if progress:isCanceled() or props.cancelBatch then break end
             progress:setPortionComplete(i-1, props.totalPhotos)
             progress:setCaption("Analizando " .. i .. " de " .. props.totalPhotos)
             
@@ -196,6 +205,54 @@ function AnalysisLogic.saveCurrent(props)
             props.statusMessage = "✗ Error al guardar: " .. tostring(err)
             LrDialogs.message("Error", "No se pudo guardar: " .. tostring(err), "critical")
         end
+    end)
+end
+
+-- Stop current batch analysis
+function AnalysisLogic.stopAnalysis(props)
+    props.cancelBatch = true
+    props.statusMessage = "Deteniendo análisis..."
+end
+
+-- Save batch (apply current context to all photos without AI)
+function AnalysisLogic.saveBatch(props)
+    LrTasks.startAsyncTask(function()
+        local prefs = LrPrefs.prefsForPlugin()
+        props.isAnalyzing = true
+        props.statusMessage = "Aplicando metadatos a todo el lote..."
+        
+        local progress = LrProgressScope({ title = "Guardando Lote (Sin IA)" })
+        
+        local contextData = {
+            userContext = props.userContext,
+            municipalityData = {
+                institutions = props.selected_instituciones or {},
+                areas = props.selected_areas or {},
+                activities = props.selected_actividades or {},
+                locations = props.selected_ubicaciones or {}
+            }
+        }
+        
+        local saveOptions = {
+            saveTitle = false, -- Don't overwrite title/desc with empty values in this mode
+            saveDescription = false,
+            saveKeywords = true -- Only apply keywords (context + location)
+        }
+        
+        local count = 0
+        for i, photo in ipairs(props.photos) do
+            if progress:isCanceled() then break end
+            progress:setPortionComplete(i-1, props.totalPhotos)
+            
+            -- Apply metadata
+            MetadataManager.applyMetadata({photo}, {}, contextData.municipalityData, saveOptions)
+            count = count + 1
+        end
+        
+        progress:done()
+        props.isAnalyzing = false
+        props.statusMessage = "✓ Se aplicaron datos a " .. count .. " fotos."
+        LrDialogs.message("Guardado Lote", "Se aplicaron los datos de contexto a " .. count .. " fotos.", "info")
     end)
 end
 

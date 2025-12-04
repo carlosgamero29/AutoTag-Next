@@ -9,9 +9,18 @@
   - Títulos descriptivos
   - Descripciones detalladas
   - Palabras clave relevantes
-- **Contexto personalizable**: Agrega información institucional, área, actividad y ubicación
-- **Procesamiento por lotes**: Analiza múltiples fotos a la vez
-- **Palabras clave jerárquicas**: Organiza automáticamente las palabras clave en categorías
+- **Sistema de Presets de Datos**:
+  - **Municipalidad**: Instituciones, Áreas, Actividades, Lugares
+  - **Bodas**: Familia, Momentos, Tipo de Foto, Ubicación
+  - **Prensa**: Sección, Alcance, Cobertura, Ciudad
+  - **Personal**: Grupo, Contexto, Evento, Lugar
+- **Selección Múltiple**: Selecciona múltiples valores para cada categoría (ej. varias instituciones o personas)
+- **Interfaz Mejorada**:
+  - Vista previa de imagen integrada
+  - Navegación entre fotos (Anterior/Siguiente)
+  - Layout optimizado lado a lado
+- **Procesamiento por lotes**: Analiza múltiples fotos a la vez con barra de progreso
+- **Personalización Total**: Edita nombres de categorías y listas de datos
 
 ## 📋 Requisitos
 
@@ -37,23 +46,30 @@
 
 ## 📖 Uso
 
+### Configuración Inicial (Presets)
+
+1. Ve a **Archivo > Administrador de complementos > AutoTag Next**
+2. En la sección **"Configuración de Metadatos y Contexto"**, selecciona tu **Preset de Datos** (Municipalidad, Bodas, Prensa, Personal)
+3. (Opcional) Personaliza los nombres de las categorías si lo deseas
+4. Cierra el administrador
+
 ### Análisis Individual
 
 1. Selecciona una foto en Lightroom
-2. Ve a **Biblioteca > Complementos > AutoTag Next**
-3. Configura el contexto (opcional): institución, área, actividad, ubicación
+2. Ve a **Archivo > Extras de módulo > AutoTag Next** (o Biblioteca > Extras de módulo)
+3. Configura el contexto usando los dropdowns (puedes seleccionar múltiples valores y agregar nuevos con el botón `+`)
 4. Haz clic en **🔍 Analizar Foto Actual**
-5. Revisa los metadatos generados
+5. Revisa los metadatos generados en el panel derecho
 6. Haz clic en **💾 Guardar Actual** para aplicarlos a la foto
 
 ### Análisis por Lotes
 
 1. Selecciona múltiples fotos en Lightroom
-2. Ve a **Biblioteca > Complementos > AutoTag Next**
+2. Abre el plugin
 3. Configura el contexto compartido (se aplicará a todas las fotos)
-4. Haz clic en **📦 Analizar Lote**
-5. Espera a que termine el procesamiento
-6. Los metadatos se guardarán automáticamente
+4. Haz clic en **⚡ Analizar Todo el Lote**
+5. Espera a que termine el procesamiento (verás una barra de progreso)
+6. Los metadatos se guardarán automáticamente en cada foto
 
 ## ⚙️ Configuración
 
@@ -64,13 +80,16 @@
 - **gemini-2.0-flash**: Versión experimental
 - **Ollama local**: Usa modelos locales (llava, bakllava, etc.)
 
-### Campos de contexto
+### Presets de Datos
 
-- **Contexto de usuario**: Información general sobre el tipo de fotografías
-- **Institución**: Organización relacionada con las fotos
-- **Área**: Departamento o área específica
-- **Actividad**: Tipo de evento o actividad
-- **Ubicación**: Lugar donde se tomaron las fotos
+El plugin incluye 4 presets predefinidos, cada uno con sus propias listas de datos:
+
+1. **Municipalidad** (Default): Para gestión gubernamental
+2. **Bodas**: Para fotógrafos de eventos sociales
+3. **Prensa**: Para fotoperiodismo y medios
+4. **Personal**: Para uso familiar y hobbies
+
+Cada preset guarda sus propias listas de datos en un archivo JSON local.
 
 ## 🗂️ Estructura de Palabras Clave
 

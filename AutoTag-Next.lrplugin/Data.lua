@@ -82,6 +82,7 @@ function Data.load()
                 local defaults = getDefaultData()
                 local mergedData = {
                     activePreset = decoded.activePreset or defaults.activePreset,
+                    locationDetails = decoded.locationDetails or {}, -- Preserve locationDetails
                     presets = {}
                 }
 
@@ -178,6 +179,36 @@ function Data.addItem(category, value)
     end
     
     table.insert(preset[category], value)
+    Data.saveAll(allData)
+    return true
+end
+
+-- Get location details
+function Data.getLocationDetails(locationName)
+    if not locationName then return nil end
+    local allData = Data.load()
+    if allData.locationDetails then
+        return allData.locationDetails[locationName]
+    end
+    return nil
+end
+
+-- Get all location details
+function Data.getAllLocationDetails()
+    local allData = Data.load()
+    return allData.locationDetails or {}
+end
+
+-- Save location details
+function Data.saveLocationDetails(locationName, details)
+    if not locationName or locationName == "" then return false end
+    
+    local allData = Data.load()
+    if not allData.locationDetails then
+        allData.locationDetails = {}
+    end
+    
+    allData.locationDetails[locationName] = details
     Data.saveAll(allData)
     return true
 end

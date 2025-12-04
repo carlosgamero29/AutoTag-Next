@@ -56,22 +56,9 @@ function API.callGemini(imagePath, context, config)
         return nil, encodeErr or "No se pudo leer la imagen" 
     end
 
-    -- Construct the prompt
-    local promptText = config.systemPrompt .. "\n\n"
-    
-    if context.userContext and context.userContext ~= "" then
-        promptText = promptText .. "Contexto del usuario: " .. context.userContext .. "\n"
-    end
-    
-    if context.municipalityData then
-        promptText = promptText .. "Datos municipales disponibles:\n"
-        if context.municipalityData.institution then promptText = promptText .. "- Institución: " .. context.municipalityData.institution .. "\n" end
-        if context.municipalityData.area then promptText = promptText .. "- Área: " .. context.municipalityData.area .. "\n" end
-        if context.municipalityData.activity then promptText = promptText .. "- Actividad: " .. context.municipalityData.activity .. "\n" end
-        if context.municipalityData.location then promptText = promptText .. "- Lugar: " .. context.municipalityData.location .. "\n" end
-    end
-    
-    promptText = promptText .. "\nGenera una respuesta en formato JSON con los siguientes campos: title, description, keywords (lista de strings)."
+    -- Construct the prompt using PromptBuilder
+    local PromptBuilder = require 'PromptBuilder'
+    local promptText = PromptBuilder.build(config, context)
 
     local url = "https://generativelanguage.googleapis.com/v1beta/models/" .. config.model .. ":generateContent?key=" .. config.apiKey
     
