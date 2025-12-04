@@ -34,7 +34,32 @@ function PromptBuilder.build(config, context)
             promptText = promptText .. "- Actividad(es): " .. formatValue(context.municipalityData.activities) .. "\n" 
         end
         if context.municipalityData.locations and #context.municipalityData.locations > 0 then 
-            promptText = promptText .. "- Lugar(es): " .. formatValue(context.municipalityData.locations) .. "\n" 
+            promptText = promptText .. "- Lugar(es): " .. formatValue(context.municipalityData.locations) .. "\n"
+            
+            -- Add detailed location info if available
+            local Data = require 'Data'
+            for _, loc in ipairs(context.municipalityData.locations) do
+                local details = Data.getLocationDetails(loc)
+                if details then
+                    local locationInfo = {}
+                    if details.district and details.district ~= "" then
+                        table.insert(locationInfo, "Distrito: " .. details.district)
+                    end
+                    if details.state and details.state ~= "" then
+                        table.insert(locationInfo, "Estado/Provincia: " .. details.state)
+                    end
+                    if details.country and details.country ~= "" then
+                        table.insert(locationInfo, "País: " .. details.country)
+                    end
+                    if details.gps and details.gps.latitude and details.gps.longitude then
+                        table.insert(locationInfo, string.format("Coordenadas GPS: %.4f, %.4f", details.gps.latitude, details.gps.longitude))
+                    end
+                    
+                    if #locationInfo > 0 then
+                        promptText = promptText .. "  Detalles de '" .. loc .. "': " .. table.concat(locationInfo, " | ") .. "\n"
+                    end
+                end
+            end
         end
     end
     

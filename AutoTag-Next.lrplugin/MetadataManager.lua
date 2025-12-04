@@ -185,12 +185,23 @@ function MetadataManager.applyMetadata(photos, metadata, municipalityData, optio
                             -- Check for extended location details (District, State, Country, GPS)
                             local details = Data.getLocationDetails(loc)
                             if details then
-                                -- Apply GPS
+                                -- Apply GPS coordinates
                                 if details.gps and details.gps.latitude and details.gps.longitude then
+                                    -- Lightroom GPS format
                                     photo:setRawMetadata('gps', {
                                         latitude = details.gps.latitude,
                                         longitude = details.gps.longitude
                                     })
+                                    -- Also set IPTC location metadata (using correct field names)
+                                    if details.country then
+                                        photo:setRawMetadata('country', details.country)
+                                    end
+                                    if details.state then
+                                        photo:setRawMetadata('stateProvince', details.state)
+                                    end
+                                    if details.district then
+                                        photo:setRawMetadata('city', details.district)
+                                    end
                                 end
                                 
                                 -- Apply Hierarchy: Lugar > Distrito > [Nombre]

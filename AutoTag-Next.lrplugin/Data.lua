@@ -199,6 +199,20 @@ function Data.getAllLocationDetails()
     return allData.locationDetails or {}
 end
 
+-- Get path to location images folder
+function Data.getLocationImagesPath()
+    local docs = LrPathUtils.getStandardFilePath('documents')
+    local folder = LrPathUtils.child(docs, "AutoTagNext_Data")
+    local imagesFolder = LrPathUtils.child(folder, "location_images")
+    
+    -- Ensure folder exists
+    if not LrFileUtils.exists(imagesFolder) then
+        LrFileUtils.createAllDirectories(imagesFolder)
+    end
+    
+    return imagesFolder
+end
+
 -- Save location details
 function Data.saveLocationDetails(locationName, details)
     if not locationName or locationName == "" then return false end
